@@ -1066,7 +1066,7 @@ class EwSlimeoidTournament:
 				cursor = conn.cursor();
 
 				# Retrieve object
-				cursor.execute("SELECT {tournament_status}, {tournament_bracket}, {contestants}, {losers_bracket}, {number_slimeoids}, {set_length}, {tournament_items}, {tournament_steroids}, {tournament_hues}, {tournament_candies}, {tournament_dyes}, {level_min}, {level_max}, {reward}) FROM slimeoidtournaments WHERE id_server = %s".format(
+				cursor.execute("SELECT {tournament_status}, {tournament_bracket}, {contestants}, {losers_bracket}, {number_slimeoids}, {set_length}, {tournament_items}, {tournament_steroids}, {tournament_hues}, {tournament_candies}, {tournament_dyes}, {level_min}, {level_max}, {reward} FROM slimeoidtournaments WHERE id_server = %s".format(
 					tournament_status = ewcfg.col_tournament_status,
 					tournament_bracket = ewcfg.col_tournament_bracket,
 					contestants = ewcfg.col_contestants,
@@ -1104,7 +1104,7 @@ class EwSlimeoidTournament:
 
 				else:
 					# Create a new database entry if the object is missing.
-					cursor.execute("REPLACE INTO slimeoidtournaments(id_server) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (id_server, ))
+					cursor.execute("REPLACE INTO slimeoidtournaments(id_server) VALUES(%s)", (id_server, ))
 
 					conn.commit()
 			finally:
@@ -4189,3 +4189,57 @@ async def trade_in_clout(cmd):
 
 	# Send the response to the player.
 	await ewutils.send_message(cmd.client, cmd.message.channel, ewutils.formatMessage(cmd.message.author, response))
+
+async def create_tournament(cmd):
+	member = cmd.message.author
+	user_data = EwUser(member=member)
+
+	if (not member.server_permissions.administrator) and (user_data.life_state == ewcfg.life_state_kingpin):
+		response = "You lack the authority to initiate a tournament, bitch."
+		return await ewutils.send_message(cmd.client, cmd.message.channel, ewutils.formatMessage(cmd.message.author, response))
+
+	tournament_data = EwSlimeoidTournament(id_server=user_data.id_server)
+
+	if tournament_data.tournament_status != "":
+		response = "A tournament has already started. You need to **!canceltournament** before you can start a new one."
+		return await ewutils.send_message(cmd.client, cmd.message.channel, ewutils.formatMessage(cmd.message.author, response))
+
+
+	if cmd.tokens_count != 12 and (cmd.tokens[1].lower() != 'default'):
+		response = "Invalid amount of options. To start a tournament with defualt settings, type **!slimeoidtournament default**."
+		response += "\nTournament options are as follows:\n**Bracket type**: Options are 4, 8, or 16.\n**Losers bracket**: Options are 1 for yes, 0 for no.\n**Number of slimeoids**: Options are 1, 2 , or 3.\n**Set length**: Options are 3, 5, or 7.\n**Items**: Options are 1 for yes, 0 for no.\n**Hues**: Options are 1 for yes, 0 for no.\n**Stat candies**: Options are 1 for yes, 0 for no.\n**Dyes**: Options are 1 for yes, 0 for no.\n**Minimum level required**: Input any number between 1 and 99.\n**Maximum level allowed**: Input any number between 1 and 99.\nReward: Input the ID number of the reward item. Alternatively, enter in 'noreward' to not give out a reward."
+		return await ewutils.send_message(cmd.client, cmd.message.channel, ewutils.formatMessage(cmd.message.author, response))
+
+	if (cmd.tokens[1].lower() == 'default'):
+
+		tournament_data.id_server = user_data.id_server
+		tournament_data.tournament_status = ewcfg.tournament_phase_signup
+
+		tournament_data.tournament_bracket = 4
+		tournament_data.losers_bracket = 0
+		tournament_data.number_slimeoids = 1
+		tournament_data.set_length = 3
+
+
+
+		tournament_data.tournament_items = 0
+		tournament_data.tournament_hues = 0
+		tournament_data.tournament_candies = 0
+		tournament_data.tournament_dyes = 0
+
+		tournament_data.level_min = 1
+		tournament_data.level_max = 99
+
+		tournament_data.reward = 'noreward'
+
+		tournament_data.contestants = 0
+
+		tournament_data.tournament_steroids = 0 # not yet feature complete
+		tournament_data.persist()
+
+		response = "Tournament created! Settings have been set to default." #TODO: explain default settings
+		return await ewutils.send_message(cmd.client, cmd.message.channel, ewutils.formatMessage(cmd.message.author, response))
+
+	if cmd.tokens_count == 12:
+		pass
+
